@@ -1,1 +1,1 @@
-# MeanRevertingYieldCurve
+# Mean Reverting Yield Curve
