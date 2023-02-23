@@ -252,3 +252,98 @@ def plot_forward_yield_comparison(df_yc_m,df_forward):
     plt.suptitle('Comparison between Yield Curve and Forward Yield Curve', fontsize=16)
 
     plt.show()
+
+
+def unconditional_average(df, start_date = '2002-08-31'):
+
+    df_average = df.expanding().mean()
+    
+    return df_average[start_date:]
+
+
+def unconditional_boxcar(df, window, start_date = '2002-08-31'):
+
+    df_boxcar = df.rolling(window).mean()
+    df_boxcar = df_boxcar[start_date:]
+
+    return df_boxcar
+
+
+def exponential_decay(df_, decay_coefficient):
+
+    df = df_.copy()
+
+    for i in range(len(df)):
+        if i > 0:
+            
+            delta_t = (df.index.to_list()[i] - df.index.to_list()[i-1]).days/30
+            w = np.exp((-1) * decay_coefficient * delta_t)
+
+            df.iloc[i] = w * df.iloc[i-1] + (1-w) * df.iloc[i]
+
+    return df
+
+
+def unconditional_exponential_decay(df_, decay_coefficient, window = -1, start_date = '2002-08-31'):
+
+    df = df_.copy()
+
+    for i in range(len(df)):
+
+        if window != -1:
+            if i >= window:
+
+                df_window = df_.iloc[(i-window):(i+1)].copy()
+                df_window = exponential_decay(df_window, decay_coefficient)
+
+                df.iloc[i] = df_window.iloc[-1]
+        
+        else:
+            if i > 0:
+
+                df_window = df_.iloc[:(i+1)].copy()
+                df_window = exponential_decay(df_window, decay_coefficient)
+
+                df.iloc[i] = df_window.iloc[-1]
+    
+    return df[start_date:]
+
+
+def plot_unconditional_yc_comparision(df_forward, df_uncon_average, df_uncon_boxcar, df_uncon_exp_decay, df_uncon_exp_decay2):
+
+    plt.figure(figsize=(20, 8))
+
+    plt.plot(df_forward['1m_f'], label = "Original Forward Yield Curve")
+    plt.plot(df_uncon_average['1m_f'], label = "Average")
+    plt.plot(df_uncon_boxcar['1m_f'], label = "Boxcar")
+    plt.plot(df_uncon_exp_decay['1m_f'], label = "Exponential Decay")
+    plt.plot(df_uncon_exp_decay2['1m_f'], label = "Exponential Decay with Window")
+
+    plt.title('Unconditional Yield Curve Comparison (1 Month Maturity)', fontsize=16)
+    plt.ylabel('Yield Curve Rate')
+    plt.xlabel('Date')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def plot_unconditional_yc_comparision2(df_forward, df_uncon_average, df_uncon_boxcar, df_uncon_exp_decay, df_uncon_exp_decay2):
+
+    plt.figure(figsize=(20, 8))
+
+    plt.plot(df_forward.T['2015-07-31'], label = "Original Forward Yield Curve")
+    plt.plot(df_uncon_average.T['2015-07-31'], label = "Average")
+    plt.plot(df_uncon_boxcar.T['2015-07-31'], label = "Boxcar")
+    plt.plot(df_uncon_exp_decay.T['2015-07-31'], label = "Exponential Decay")
+    plt.plot(df_uncon_exp_decay2.T['2015-07-31'], label = "Exponential Decay with Window")
+
+    plt.title('Unconditional Yield Curve Comparison (July 2015)', fontsize=16)
+    plt.ylabel('Yield Curve Rate')
+    plt.xlabel('Maturity (months)')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
