@@ -2,6 +2,7 @@ import quandl
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 
 YumengZhangAPIkey = "qUL_zooxYcHueGAiB-D-"
@@ -347,3 +348,57 @@ def plot_unconditional_yc_comparision2(df_forward, df_uncon_average, df_uncon_bo
     plt.grid(True)
 
     plt.show();
+
+
+def fitted_curvature(x,y):
+
+    # Constructing piecewise cubic spline function
+    f = interp1d(x, y, kind='cubic')
+
+    xnew = np.linspace(x[0], x[-1], 200)
+
+    # Compute the curvature using the formula
+    dfdx = np.gradient(f(xnew), xnew)
+    d2fdx2 = np.gradient(dfdx, xnew)
+    
+    k = np.abs(d2fdx2) / (1 + dfdx**2)**(3/2)
+
+    # plt.plot(x,y,'o', label = 'Original Data Points')
+    # plt.plot(xnew, f(xnew), label = 'Fitted Curve')
+    plt.plot(xnew, k, label = 'Curvature')
+    plt.xlabel('x')
+    plt.ylabel('Curvature')
+    plt.legend()
+    plt.show()
+
+    # return k
+
+
+def three_bond_curvature(df_forward, df_uncon, three_bonds):
+
+    month_dict1 = {'1m':'1m_f', '2m':'2m_f', '3m':'3m_f', '6m':'6m_f', '1y':'1y_f', '2y':'2y_f','3y':'3y_f', '5y':'5y_f', '7y':'7y_f','10y':'10y_f','20y':'20y_f'}
+    month_dict2 = {'1m':1, '2m':2, '3m':3, '6m':6, '1y':12, '2y':24,'3y':36, '5y':60, '7y':84,'10y':120,'20y':240}
+
+    X = three_bonds[0]
+    Y = three_bonds[1]
+    Z = three_bonds[2]
+
+    r_x = month_dict1[X]
+    r_y = month_dict1[Y]
+    r_z = month_dict1[Z]
+
+    x = month_dict2[X]
+    y = month_dict2[Y]
+    z = month_dict2[Z]
+
+    df_forward['forward_curvature'] = ((df_forward[r_y] - df_forward[r_x])/(y-x)) - ((df_forward[r_z] - df_forward[r_y])/(z-y))
+    df_uncon['uncon_curvature'] = ((df_uncon[r_y] - df_uncon[r_x])/(y-x)) - ((df_uncon[r_z] - df_uncon[r_y])/(z-y))
+
+    df_forward = df_forward.join(df_uncon[['uncon_curvature']])
+
+    df_curvature = df_forward[['forward_curvature','uncon_curvature']]
+
+    df_forward = df_forward.drop(columns=['forward_curvature','uncon_curvature'])
+    df_uncon = df_uncon.drop(columns=['uncon_curvature'])
+
+    return df_curvature.dropna()
