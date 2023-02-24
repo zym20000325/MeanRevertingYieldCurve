@@ -396,9 +396,68 @@ def three_bond_curvature(df_forward, df_uncon, three_bonds):
 
     df_forward = df_forward.join(df_uncon[['uncon_curvature']])
 
-    df_curvature = df_forward[['forward_curvature','uncon_curvature']]
+    df_curvature = df_forward[[r_x,r_y,r_z,'forward_curvature','uncon_curvature']]
 
     df_forward = df_forward.drop(columns=['forward_curvature','uncon_curvature'])
     df_uncon = df_uncon.drop(columns=['uncon_curvature'])
 
     return df_curvature.dropna()
+
+
+def plot_curvature(df_curvature, title):
+
+    plt.figure(figsize=(20, 8))
+
+    plt.plot(df_curvature['forward_curvature'], label = "Forward Yield Curvature")
+    plt.plot(df_curvature['uncon_curvature'], label = "Unconditional Yield Curvature")
+
+    plt.title('Comparison of Curvature - Forward Yield Curve VS Unconditional Yield Curve ('+title+')',fontsize=16)
+    plt.ylabel('Curvature')
+    plt.xlabel('Date')
+    plt.legend() 
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def trade(df_forward, df_uncon, three_bonds):
+
+    df_curvature = three_bond_curvature(df_forward, df_uncon, three_bonds)
+
+    month_dict1 = {'1m':'1m_f', '2m':'2m_f', '3m':'3m_f', '6m':'6m_f', '1y':'1y_f', '2y':'2y_f','3y':'3y_f', '5y':'5y_f', '7y':'7y_f','10y':'10y_f','20y':'20y_f'}
+    month_dict2 = {'1m':1, '2m':2, '3m':3, '6m':6, '1y':12, '2y':24,'3y':36, '5y':60, '7y':84,'10y':120,'20y':240}
+
+    X = three_bonds[0]
+    Y = three_bonds[1]
+    Z = three_bonds[2]
+
+    r_x = month_dict1[X]
+    r_y = month_dict1[Y]
+    r_z = month_dict1[Z]
+
+    x = month_dict2[X]
+    y = month_dict2[Y]
+    z = month_dict2[Z]
+
+    K = 1000
+
+    df_curvature['pnl'] = 0.0
+
+    for i in range(len(df_curvature)):
+
+        p_x = (1000/(x-1))*((1+df_curvature[r_x][i]/100)**((x-1)/12))
+        p_y = (1000/(y-1))*((1+df_curvature[r_y][i]/100)**((y-1)/12))
+        p_z = (1000/(z-1))*((1+df_curvature[r_z][i]/100)**((z-1)/12))
+
+        if df_curvature['forward_curvature'][i] > df_curvature['uncon_curvature'][i]:
+            df_curvature['pnl'][i] = p_y - p_x - p_z
+            # df_curvature['pnl'][i] = p_x + p_z - p_y
+
+        elif df_curvature['forward_curvature'][i] < df_curvature['uncon_curvature'][i]:
+            df_curvature['pnl'][i] = p_x + p_z - p_y
+            # df_curvature['pnl'][i] = p_y - p_x - p_z
+
+    df_curvature['cumulative_pnl'] = np.cumsum(df_curvature['pnl'])
+
+    return df_curvature
