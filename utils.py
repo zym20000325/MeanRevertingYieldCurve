@@ -446,9 +446,13 @@ def trade(df_forward, df_uncon, three_bonds):
 
     for i in range(len(df_curvature)):
 
-        p_x = (1000/(x-1))*((1+df_curvature[r_x][i]/100)**((x-1)/12))
-        p_y = (1000/(y-1))*((1+df_curvature[r_y][i]/100)**((y-1)/12))
-        p_z = (1000/(z-1))*((1+df_curvature[r_z][i]/100)**((z-1)/12))
+        # p_x = (1000/(x-1))*((1+df_curvature[r_x][i]/100)**((x-1)/12))
+        # p_y = (1000/(y-1))*((1+df_curvature[r_y][i]/100)**((y-1)/12))
+        # p_z = (1000/(z-1))*((1+df_curvature[r_z][i]/100)**((z-1)/12))
+
+        p_x = (1000/(x-1))*((1+df_curvature[r_x][i]/100)**(1/(x-1)))
+        p_y = (1000/(y-1))*((1+df_curvature[r_y][i]/100)**(1/(y-1)))
+        p_z = (1000/(z-1))*((1+df_curvature[r_z][i]/100)**(1/(z-1)))
 
         if df_curvature['forward_curvature'][i] > df_curvature['uncon_curvature'][i]:
             df_curvature['pnl'][i] = p_y - p_x - p_z
