@@ -10,7 +10,7 @@ YumengZhangAPIkey = "qUL_zooxYcHueGAiB-D-"
 quandl.ApiConfig.api_key = YumengZhangAPIkey
 
 
-def get_yield_curve(start_date = '2001-08-01', end_date = '2023-02-01'):
+def get_yield_curve(start_date = '2001-08-01', end_date = '2022-08-01'):
 
     df_yc = quandl.get("USTREASURY/YIELD")
     
@@ -21,9 +21,23 @@ def get_yield_curve(start_date = '2001-08-01', end_date = '2023-02-01'):
     df_yc_m['2 MO'] = df_yc_m['2 MO'].fillna(df_yc_m['2 MO_'])
     df_yc_m = df_yc_m.drop(['30 YR','2 MO_'], axis=1)
 
-    df_yc_m .columns = ['1m', '2m', '3m', '6m', '1y', '2y', '3y','5y', '7y', '10y', '20y']
+    df_yc_m.columns = ['1m', '2m', '3m', '6m', '1y', '2y', '3y','5y', '7y', '10y', '20y']
 
     return df_yc_m
+
+
+def get_fed_fund_rate(start_date = '2001-08-01', end_date = '2022-08-01'):
+
+    fed_funds_rate = quandl.get("FRED/DFF")
+    fed_funds_rate = fed_funds_rate.resample('M').last()
+    fed_funds_rate = fed_funds_rate[start_date:end_date]
+    fed_funds_rate.columns = ['ffr']
+
+    fed_funds_rate['ffr'] = fed_funds_rate['ffr']/100 
+    fed_funds_rate['ffr'] = (1+fed_funds_rate['ffr'])**(1/12)-1
+    fed_funds_rate['ffr'] = fed_funds_rate['ffr'] + 0.005           # transaction cost
+
+    return fed_funds_rate
 
 
 def plot_yield_curve(df_):
@@ -493,7 +507,8 @@ def bond_price(zcb, coupon_rate, tenor):
         p = 1.0
     else:
         r = np.interp(times, zcb.index.values, zcb.values) # Linear interpolation
-        p = np.exp(-tenor*r[-1]) + 0.5 * coupon_rate * np.exp(-r*times).sum()
+        # p = np.exp(-tenor*r[-1]) + 0.5 * coupon_rate * np.exp(-r*times).sum()
+        p = np.exp(-tenor*r[-1]) + 0.5 * coupon_rate/100 * np.exp(-r*times).sum()
 
     return p
 
@@ -528,9 +543,10 @@ def calculate_bond_price(df_zero, df_yc_m, tenor):
     return df_bond_price
 
 
-def trade(df_origin, df_uncon, df_yc_m, three_bonds, bound = 0.0):
+def trade(df_origin, df_uncon, df_yc_m, df_fed_fund_rate,three_bonds, bound = 0.0):
 
     df_curvature = three_bond_curvature(df_origin, df_uncon, three_bonds, bound = bound,rate='z')
+    df_curvature = df_curvature.join(df_fed_fund_rate)
 
     # month_dict1 = {'1m':'1m_f', '2m':'2m_f', '3m':'3m_f', '6m':'6m_f', '1y':'1y_f', '2y':'2y_f','3y':'3y_f', '5y':'5y_f', '7y':'7y_f','10y':'10y_f','20y':'20y_f'}
     month_dict1 = {'1m':'1m_0', '2m':'2m_0', '3m':'3m_0', '6m':'6m_0', '1y':'1y_0', '2y':'2y_0','3y':'3y_0', '5y':'5y_0', '7y':'7y_0','10y':'10y_0','20y':'20y_0'}
@@ -549,7 +565,7 @@ def trade(df_origin, df_uncon, df_yc_m, three_bonds, bound = 0.0):
     y = month_dict2[Y]
     z = month_dict2[Z]
 
-    K = 1000
+    K = 800
 
     df_origin_ = df_origin.drop(columns=['origin_curvature'])
 
@@ -558,6 +574,7 @@ def trade(df_origin, df_uncon, df_yc_m, three_bonds, bound = 0.0):
     z_price = calculate_bond_price(df_origin_, df_yc_m, z/12)
 
     df_curvature['pnl'] = 0.0
+    df_curvature['borrowing_cost'] = 0.0
 
     index_list = df_curvature.index.values.tolist()
 
@@ -574,32 +591,96 @@ def trade(df_origin, df_uncon, df_yc_m, three_bonds, bound = 0.0):
         date = df_curvature.index.values[i]
         # print(date)
 
-        p_x = (1000/(x-1))*(x_price.loc[date]['new_bond_price']/x_price.loc[date]['old_bond_price'] - 1)
-        p_y = (1000/(y-1))*(y_price.loc[date]['new_bond_price']/y_price.loc[date]['old_bond_price'] - 1)
-        p_z = (1000/(z-1))*(z_price.loc[date]['new_bond_price']/z_price.loc[date]['old_bond_price'] - 1) 
+        # p_x = (1000/(x-1))*(x_price.loc[date]['new_bond_price']/x_price.loc[date]['old_bond_price'] - 1)
+        # p_y = (1000/(y-1))*(y_price.loc[date]['new_bond_price']/y_price.loc[date]['old_bond_price'] - 1)
+        # p_z = (1000/(z-1))*(z_price.loc[date]['new_bond_price']/z_price.loc[date]['old_bond_price'] - 1) 
+
+        p_x = (1000)*(x_price.loc[date]['new_bond_price']/x_price.loc[date]['old_bond_price']-1)
+        p_y = (1000)*(y_price.loc[date]['new_bond_price']/y_price.loc[date]['old_bond_price']-1)
+        p_z = (1000)*(z_price.loc[date]['new_bond_price']/z_price.loc[date]['old_bond_price']-1) 
 
         if bound == 0.0:
 
             if df_curvature['origin_curvature'][i] > df_curvature['uncon_curvature'][i]:
+
                 # df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
+                # df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+
                 df_curvature['pnl'][i] = p_x + p_z - p_y
+                # df_curvature['borrowing_cost'][i] = (1000/(y-1)-1000/(x-1)-1000/(z-1)) * df_curvature['ffr'][i]
+                df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+
+                df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
 
             elif df_curvature['origin_curvature'][i] < df_curvature['uncon_curvature'][i]:
+
                 # df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
+                # df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+
                 df_curvature['pnl'][i] = p_y - p_x - p_z
+                # df_curvature['borrowing_cost'][i] = (1000/(x-1)+1000/(z-1)-1000/(y-1)) * df_curvature['ffr'][i]
+                df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+
+                df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
             
         else:
 
             if df_curvature['origin_curvature'][i] > df_curvature['upper'][i]:
+
                 # df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
+                # df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+
                 df_curvature['pnl'][i] = p_x + p_z - p_y
+                # df_curvature['borrowing_cost'][i] = (1000/(y-1)-1000/(x-1)-1000/(z-1)) * df_curvature['ffr'][i]
+                df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+
+                df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
 
             elif df_curvature['origin_curvature'][i] < df_curvature['lower'][i]:
+
                 # df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
+                # df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+
                 df_curvature['pnl'][i] = p_y - p_x - p_z
+                # df_curvature['borrowing_cost'][i] = (1000/(x-1)+1000/(z-1)-1000/(y-1)) * df_curvature['ffr'][i]
+                df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+
+                df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
+            
 
     df_curvature['cumulative_pnl'] = np.cumsum(df_curvature['pnl'])
+    df_curvature['return'] = df_curvature['pnl']/K 
+    df_curvature['cum_return'] = np.cumprod(1+df_curvature['return']) - 1
 
     return df_curvature
 
 
+def performance_metrics(df, name, returns_plot_show = False, pnl_plot_show = False):
+    
+    # returns = df['cumulative_return'].to_frame()
+    returns = df['return'].to_frame()
+    cumulative_returns = df['cum_return'].to_frame()
+    cumulative_pnl = df['cumulative_pnl'].to_frame()
+    
+    metrics = pd.DataFrame(index=returns.columns)
+    
+    metrics['Mean'] = round(returns.mean(),6)*12
+    metrics['Vol'] = round(returns.std(),6)*np.sqrt(12)
+    metrics['Sharpe'] = round(returns.mean()/returns.std(),4)*np.sqrt(12)
+
+    metrics['Min'] = min(df['return'])
+    metrics['Max'] = max(df['return'])
+        
+    metrics['Max Drawdown'] = (cumulative_returns['cum_return'] - 
+                               cumulative_returns['cum_return'].rolling(len(cumulative_returns['cum_return']), 
+                                                                 min_periods=1).max()).min()
+        
+    if returns_plot_show == True:
+        cumulative_returns.plot(title="Cumulative Net Return", ylabel = "cumulative net return (%)" ,figsize = (12,5))
+        
+    if pnl_plot_show == True:
+        cumulative_pnl.plot(title="Cumulative PnL",figsize = (12,5))
+
+    metrics = metrics.rename(index={'return': name})
+        
+    return metrics
