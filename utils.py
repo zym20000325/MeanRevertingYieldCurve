@@ -6,6 +6,8 @@ from scipy.interpolate import interp1d
 pd.options.mode.chained_assignment = None 
 
 
+# ---------------------------------------- Data ----------------------------------------
+
 YumengZhangAPIkey = "qUL_zooxYcHueGAiB-D-"
 quandl.ApiConfig.api_key = YumengZhangAPIkey
 
@@ -40,20 +42,7 @@ def get_fed_fund_rate(start_date = '2001-08-01', end_date = '2022-08-01'):
     return fed_funds_rate
 
 
-def plot_yield_curve(df_):
-
-    df = df_.copy()
-    df.columns = ['1 month', '2 month', '3 month', '6 month', '1 year', '2 year', '3 year','5 year', '7 year', '10 year', '20 year']
-    df.plot(figsize=(20, 8))
-
-    plt.title('US Treasury Yield Curve Rates',fontsize=16)
-    plt.ylabel('Yield Curve Rate')
-    plt.xlabel('Date')
-    plt.legend(loc='upper right')
-    plt.gca().set_facecolor('lightgray')
-    plt.grid(True)
-    plt.show();
-
+# ---------------------------------------- Compute Rate ----------------------------------------
 
 def spot_rate(zcb, tenor):
 
@@ -149,6 +138,41 @@ def compute_forward_yield(df):
     return df_forward
 
 
+def transpose_to_tenor(df):
+
+    df1 = df.T
+    df1.index = [1, 2, 3, 6, 12, 24, 36, 60, 84, 120, 240]
+    df1.index.names = ['Tenor']
+
+    return df1
+
+
+def transpose_to_tenor_year(df):
+
+    df1 = df.T
+    df1.index = [1/12, 1/6, 1/4, 1/2, 1, 2, 3, 5, 7, 10, 20]
+    df1.index.names = ['Tenor']
+
+    return df1
+
+
+# ---------------------------------------- Plot ----------------------------------------
+
+def plot_yield_curve(df_):
+
+    df = df_.copy()
+    df.columns = ['1 month', '2 month', '3 month', '6 month', '1 year', '2 year', '3 year','5 year', '7 year', '10 year', '20 year']
+    df.plot(figsize=(20, 8))
+
+    plt.title('US Treasury Yield Curve Rates',fontsize=16)
+    plt.ylabel('Yield Curve Rate')
+    plt.xlabel('Date')
+    plt.legend(loc='upper right')
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+    plt.show();
+
+
 def plot_yield_comparison(df_yc_m,df_zero,df_forward):
 
     plt.figure(figsize=(20, 8))
@@ -167,22 +191,17 @@ def plot_yield_comparison(df_yc_m,df_zero,df_forward):
     plt.show();
 
 
-def transpose_to_tenor(df):
+def plot_bond_price(df_bond_price):
 
-    df1 = df.T
-    df1.index = [1, 2, 3, 6, 12, 24, 36, 60, 84, 120, 240]
-    df1.index.names = ['Tenor']
+    df_bond_price['old_bond_price'].plot(figsize=(20, 8))
 
-    return df1
-
-
-def transpose_to_tenor_year(df):
-
-    df1 = df.T
-    df1.index = [1/12, 1/6, 1/4, 1/2, 1, 2, 3, 5, 7, 10, 20]
-    df1.index.names = ['Tenor']
-
-    return df1
+    plt.title('Bond Price',fontsize=16)
+    plt.ylabel('Bond Price')
+    plt.xlabel('Date')
+    plt.legend(loc='upper right')
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+    plt.show();
 
 
 def plot_zero_coupon_comparison(df_zero):
@@ -266,6 +285,149 @@ def plot_forward_yield_comparison(df_yc_m,df_forward):
     plt.show()
 
 
+def plot_unconditional_yc_comparision(df_origin, df_uncon_average, df_uncon_exp_decay, df_uncon_exp_decay_win, rate):
+
+    plt.figure(figsize=(20, 8))
+
+    if rate == 'f':
+
+        plt.plot(df_origin['1m_f'], label = "Original Forward Yield Curve")
+        plt.plot(df_uncon_average['1m_f'], label = "Average")
+        plt.plot(df_uncon_exp_decay['1m_f'], label = "Exponential Decay")
+        plt.plot(df_uncon_exp_decay_win['1m_f'], label = "Exponential Decay with Window (Length = 20)")
+    
+    elif rate == 'z':
+
+        plt.plot(df_origin['1m_0'], label = "Original Zero Coupon Rate Curve")
+        plt.plot(df_uncon_average['1m_0'], label = "Average")
+        plt.plot(df_uncon_exp_decay['1m_0'], label = "Exponential Decay")
+        plt.plot(df_uncon_exp_decay_win['1m_0'], label = "Exponential Decay with Window")
+
+    plt.title('Unconditional Yield Curve Comparison (1 Month Maturity)', fontsize=16)
+    plt.ylabel('Yield Curve Rate')
+    plt.xlabel('Date')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def plot_unconditional_yc_comparision2(df_origin, df_uncon_average, df_uncon_exp_decay, df_uncon_exp_decay_win, rate):
+
+    plt.figure(figsize=(20, 8))
+
+    if rate == 'f':
+        plt.plot(df_origin.T['2015-07-31'], label = "Original Forward Yield Curve")
+    
+    elif rate == 'z':
+        plt.plot(df_origin.T['2015-07-31'], label = "Original Zero Coupon Rate")
+
+    plt.plot(df_uncon_average.T['2015-07-31'], label = "Average")
+    plt.plot(df_uncon_exp_decay.T['2015-07-31'], label = "Exponential Decay")
+    plt.plot(df_uncon_exp_decay_win.T['2015-07-31'], label = "Exponential Decay with Window")
+
+    plt.title('Unconditional Yield Curve Comparison (July 2015)', fontsize=16)
+    plt.ylabel('Yield Curve Rate')
+    plt.xlabel('Maturity (months)')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def get_curvature_diff(df_curvature, quantile = 0.25, plot = False):
+
+    df_curvature_diff = pd.DataFrame(index = df_curvature.index)
+    df_curvature_diff['diff'] = df_curvature['origin_curvature'] - df_curvature['uncon_curvature']
+    df_curvature_diff['diff'] = df_curvature_diff['diff'].abs()
+
+    if plot == True:
+
+        plt.figure(figsize=(20, 8))
+        plt.plot(df_curvature_diff['diff'], label = "Curvature Diff")
+
+        plt.title('Absolute Value of Difference Between Original Curvature and Unconditional Curvature', fontsize=16)
+        plt.ylabel('Absolute Value of Curvature Difference')
+        plt.xlabel('Date')
+        plt.legend()
+        plt.gca().set_facecolor('lightgray')
+        plt.grid(True)
+
+        plt.show();
+
+    return df_curvature_diff['diff'].quantile(quantile)
+
+
+def plot_curvature(df_curvature, title, rate, bound = False):
+
+    plt.figure(figsize=(20, 8))
+
+    if rate == 'f':
+        plt.plot(df_curvature['origin_curvature'], label = "Forward Yield Curvature")
+    elif rate == 'z':
+        plt.plot(df_curvature['origin_curvature'], label = "Zero Coupon Rate Curvature")
+
+    plt.plot(df_curvature['uncon_curvature'], label = "Unconditional Yield Curvature")
+
+    if rate == 'f':
+        plt.title('Comparison of Curvature - Forward Yield Curve VS Unconditional Yield Curve ('+title+')',fontsize=16)
+    elif rate == 'z':
+        plt.title('Comparison of Curvature - Zero Coupon Rate VS Unconditional Yield Curve ('+title+')',fontsize=16)
+
+    if bound == True:
+        plt.plot(df_curvature['upper'], label = "Upper Bound", color = 'grey')
+        plt.plot(df_curvature['lower'], label = "Lower Bound", color = 'grey')
+
+    plt.ylabel('Curvature')
+    plt.xlabel('Date')
+    plt.legend() 
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def plot_cumulative_pnl(df_ave, df_exp, df_expwin, title):
+
+    plt.figure(figsize=(20, 8))
+
+    plt.plot(df_ave['cumulative_pnl'], label = "Average")
+    plt.plot(df_exp['cumulative_pnl'], label = "Exponential Decay")
+    plt.plot(df_expwin['cumulative_pnl'], label = "Exponential Decay with Window") 
+
+    plt.title('Cumulative PnL - '+title, fontsize=16)
+    plt.ylabel('PnL')
+    plt.xlabel('Date')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+def plot_cumulative_pnl2(df1, df2, df3, df4):
+
+    plt.figure(figsize=(20, 8))
+
+    plt.plot(df1['cumulative_pnl'], label = "Confidence Score = 0.7")
+    plt.plot(df2['cumulative_pnl'], label = "Confidence Score = 0.5")
+    plt.plot(df3['cumulative_pnl'], label = "Confidence Score = 0.3") 
+    plt.plot(df4['cumulative_pnl'], label = "Confidence Score = 0.1") 
+
+    plt.title('Cumulative PnL - Using Different Confidence Scores', fontsize=16)
+    plt.ylabel('PnL')
+    plt.xlabel('Date')
+    plt.legend()
+    plt.gca().set_facecolor('lightgray')
+    plt.grid(True)
+
+    plt.show();
+
+
+# ---------------------------------------- Trading Strategy ----------------------------------------
+
 def unconditional_average(df, start_date = '2002-08-31'):
 
     df_average = df.expanding().mean()
@@ -321,61 +483,6 @@ def unconditional_exponential_decay(df_, decay_coefficient, window = -1, start_d
     return df[start_date:]
 
 
-def plot_unconditional_yc_comparision(df_origin, df_uncon_average, df_uncon_boxcar, df_uncon_exp_decay, df_uncon_exp_decay2,rate):
-
-    plt.figure(figsize=(20, 8))
-
-    if rate == 'f':
-
-        plt.plot(df_origin['1m_f'], label = "Original Forward Yield Curve")
-        plt.plot(df_uncon_average['1m_f'], label = "Average")
-        plt.plot(df_uncon_boxcar['1m_f'], label = "Boxcar")
-        plt.plot(df_uncon_exp_decay['1m_f'], label = "Exponential Decay")
-        plt.plot(df_uncon_exp_decay2['1m_f'], label = "Exponential Decay with Window")
-    
-    elif rate == 'z':
-
-        plt.plot(df_origin['1m_0'], label = "Original Zero Coupon Rate Curve")
-        plt.plot(df_uncon_average['1m_0'], label = "Average")
-        plt.plot(df_uncon_boxcar['1m_0'], label = "Boxcar")
-        plt.plot(df_uncon_exp_decay['1m_0'], label = "Exponential Decay")
-        plt.plot(df_uncon_exp_decay2['1m_0'], label = "Exponential Decay with Window")
-
-    plt.title('Unconditional Yield Curve Comparison (1 Month Maturity)', fontsize=16)
-    plt.ylabel('Yield Curve Rate')
-    plt.xlabel('Date')
-    plt.legend()
-    plt.gca().set_facecolor('lightgray')
-    plt.grid(True)
-
-    plt.show();
-
-
-def plot_unconditional_yc_comparision2(df_origin, df_uncon_average, df_uncon_boxcar, df_uncon_exp_decay, df_uncon_exp_decay2,rate):
-
-    plt.figure(figsize=(20, 8))
-
-    if rate == 'f':
-        plt.plot(df_origin.T['2015-07-31'], label = "Original Forward Yield Curve")
-    
-    elif rate == 'z':
-        plt.plot(df_origin.T['2015-07-31'], label = "Original Zero Coupon Rate")
-
-    plt.plot(df_uncon_average.T['2015-07-31'], label = "Average")
-    plt.plot(df_uncon_boxcar.T['2015-07-31'], label = "Boxcar")
-    plt.plot(df_uncon_exp_decay.T['2015-07-31'], label = "Exponential Decay")
-    plt.plot(df_uncon_exp_decay2.T['2015-07-31'], label = "Exponential Decay with Window")
-
-    plt.title('Unconditional Yield Curve Comparison (July 2015)', fontsize=16)
-    plt.ylabel('Yield Curve Rate')
-    plt.xlabel('Maturity (months)')
-    plt.legend()
-    plt.gca().set_facecolor('lightgray')
-    plt.grid(True)
-
-    plt.show();
-
-
 def fitted_curvature(x,y):
 
     # Constructing piecewise cubic spline function
@@ -398,29 +505,6 @@ def fitted_curvature(x,y):
     plt.show()
 
     # return k
-
-
-def get_curvature_diff(df_curvature, quantile = 0.25, plot = False):
-
-    df_curvature_diff = pd.DataFrame(index = df_curvature.index)
-    df_curvature_diff['diff'] = df_curvature['origin_curvature'] - df_curvature['uncon_curvature']
-    df_curvature_diff['diff'] = df_curvature_diff['diff'].abs()
-
-    if plot == True:
-
-        plt.figure(figsize=(20, 8))
-        plt.plot(df_curvature_diff['diff'], label = "Curvature Diff")
-
-        plt.title('Absolute Value of Difference Between Original Curvature and Unconditional Curvature', fontsize=16)
-        plt.ylabel('Absolute Value of Curvature Difference')
-        plt.xlabel('Date')
-        plt.legend()
-        plt.gca().set_facecolor('lightgray')
-        plt.grid(True)
-
-        plt.show();
-
-    return df_curvature_diff['diff'].quantile(quantile)
 
 
 def three_bond_curvature(df_origin, df_uncon, three_bonds, bound, rate):
@@ -468,35 +552,6 @@ def three_bond_curvature(df_origin, df_uncon, three_bonds, bound, rate):
     df_uncon = df_uncon.drop(columns=['uncon_curvature'])
 
     return df_curvature.dropna()
-
-
-def plot_curvature(df_curvature, title, rate, bound = False):
-
-    plt.figure(figsize=(20, 8))
-
-    if rate == 'f':
-        plt.plot(df_curvature['origin_curvature'], label = "Forward Yield Curvature")
-    elif rate == 'z':
-        plt.plot(df_curvature['origin_curvature'], label = "Zero Coupon Rate Curvature")
-
-    plt.plot(df_curvature['uncon_curvature'], label = "Unconditional Yield Curvature")
-
-    if rate == 'f':
-        plt.title('Comparison of Curvature - Forward Yield Curve VS Unconditional Yield Curve ('+title+')',fontsize=16)
-    elif rate == 'z':
-        plt.title('Comparison of Curvature - Zero Coupon Rate VS Unconditional Yield Curve ('+title+')',fontsize=16)
-
-    if bound == True:
-        plt.plot(df_curvature['upper'], label = "Upper Bound", color = 'grey')
-        plt.plot(df_curvature['lower'], label = "Lower Bound", color = 'grey')
-
-    plt.ylabel('Curvature')
-    plt.xlabel('Date')
-    plt.legend() 
-    plt.gca().set_facecolor('lightgray')
-    plt.grid(True)
-
-    plt.show();
 
 
 def bond_price(zcb, coupon_rate, tenor):
@@ -565,7 +620,7 @@ def trade(df_origin, df_uncon, df_yc_m, df_fed_fund_rate,three_bonds, bound = 0.
     y = month_dict2[Y]
     z = month_dict2[Z]
 
-    K = 800
+    K = 200
 
     df_origin_ = df_origin.drop(columns=['origin_curvature'])
 
@@ -578,7 +633,7 @@ def trade(df_origin, df_uncon, df_yc_m, df_fed_fund_rate,three_bonds, bound = 0.
 
     index_list = df_curvature.index.values.tolist()
 
-    for i in range(len(df_curvature)):
+    for i in range(1, len(df_curvature)):
 
         # p_x = (1000/(x-1))*((1+df_curvature[r_x][i]/100)**((x-1)/12))
         # p_y = (1000/(y-1))*((1+df_curvature[r_y][i]/100)**((y-1)/12))
@@ -601,55 +656,63 @@ def trade(df_origin, df_uncon, df_yc_m, df_fed_fund_rate,three_bonds, bound = 0.
 
         if bound == 0.0:
 
-            if df_curvature['origin_curvature'][i] > df_curvature['uncon_curvature'][i]:
+            if df_curvature['origin_curvature'][i-1] > df_curvature['uncon_curvature'][i-1]:
 
-                # df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
-                # df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+                df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
+                df_curvature['borrowing_cost'][i] = 1200 * df_curvature['ffr'][i]
 
-                df_curvature['pnl'][i] = p_x + p_z - p_y
+                # df_curvature['pnl'][i] = p_x + p_z - p_y
                 # df_curvature['borrowing_cost'][i] = (1000/(y-1)-1000/(x-1)-1000/(z-1)) * df_curvature['ffr'][i]
-                df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+                # df_curvature['borrowing_cost'][i] = 200 * df_curvature['ffr'][i]
 
                 df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
 
-            elif df_curvature['origin_curvature'][i] < df_curvature['uncon_curvature'][i]:
+            elif df_curvature['origin_curvature'][i-1] < df_curvature['uncon_curvature'][i-1]:
 
-                # df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
-                # df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+                df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
+                df_curvature['borrowing_cost'][i] = -800 * df_curvature['ffr'][i]
 
-                df_curvature['pnl'][i] = p_y - p_x - p_z
+                # df_curvature['pnl'][i] = p_y - p_x - p_z
                 # df_curvature['borrowing_cost'][i] = (1000/(x-1)+1000/(z-1)-1000/(y-1)) * df_curvature['ffr'][i]
-                df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+                # df_curvature['borrowing_cost'][i] = -800 * df_curvature['ffr'][i]
 
                 df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
+            
+            else: 
+                
+                df_curvature['pnl'][i] = 200 * df_curvature['ffr'][i]
             
         else:
 
-            if df_curvature['origin_curvature'][i] > df_curvature['upper'][i]:
+            if df_curvature['origin_curvature'][i-1] > df_curvature['upper'][i-1]:
 
-                # df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
-                # df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+                df_curvature['pnl'][i] = p_y - p_x - p_z   # 反过来  x+z-y 存的钱 乘 rate  +
+                df_curvature['borrowing_cost'][i] = 1200 * df_curvature['ffr'][i]
 
-                df_curvature['pnl'][i] = p_x + p_z - p_y
+                #df_curvature['pnl'][i] = p_x + p_z - p_y
                 # df_curvature['borrowing_cost'][i] = (1000/(y-1)-1000/(x-1)-1000/(z-1)) * df_curvature['ffr'][i]
-                df_curvature['borrowing_cost'][i] = 800 * df_curvature['ffr'][i]
+                #df_curvature['borrowing_cost'][i] = 200 * df_curvature['ffr'][i]
 
                 df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
 
-            elif df_curvature['origin_curvature'][i] < df_curvature['lower'][i]:
+            elif df_curvature['origin_curvature'][i-1] < df_curvature['lower'][i-1]:
 
-                # df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
-                # df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+                df_curvature['pnl'][i] = p_x + p_z - p_y   # 1000/(y-1) - x - z 借的钱   +
+                df_curvature['borrowing_cost'][i] = -800 * df_curvature['ffr'][i]
 
-                df_curvature['pnl'][i] = p_y - p_x - p_z
+                # df_curvature['pnl'][i] = p_y - p_x - p_z
                 # df_curvature['borrowing_cost'][i] = (1000/(x-1)+1000/(z-1)-1000/(y-1)) * df_curvature['ffr'][i]
-                df_curvature['borrowing_cost'][i] = -200 * df_curvature['ffr'][i]
+                # df_curvature['borrowing_cost'][i] = -800 * df_curvature['ffr'][i]
 
                 df_curvature['pnl'][i] = df_curvature['pnl'][i] + df_curvature['borrowing_cost'][i]
             
+            else: 
+                
+                df_curvature['pnl'][i] = 200 * df_curvature['ffr'][i]
+            
 
     df_curvature['cumulative_pnl'] = np.cumsum(df_curvature['pnl'])
-    df_curvature['return'] = df_curvature['pnl']/K 
+    df_curvature['return'] = df_curvature['pnl']/K
     df_curvature['cum_return'] = np.cumprod(1+df_curvature['return']) - 1
 
     return df_curvature
