@@ -8,8 +8,8 @@ pd.options.mode.chained_assignment = None
 
 # ---------------------------------------- Data ----------------------------------------
 
-YumengZhangAPIkey = "qUL_zooxYcHueGAiB-D-"
-quandl.ApiConfig.api_key = YumengZhangAPIkey
+YourAPIkey = "YourAPIkey"
+quandl.ApiConfig.api_key = YourAPIkey
 
 
 def get_yield_curve(start_date = '2001-08-01', end_date = '2022-08-01'):
